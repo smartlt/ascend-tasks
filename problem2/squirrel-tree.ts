@@ -205,29 +205,44 @@ class TreeBuilder implements ITreeBuilder {
 }
 
 // ============ STRATEGY PATTERN ============
-class DepthFirstHoleFinder implements IHoleFinder {
+class BreadthFirstHoleFinder implements IHoleFinder {
   findHoles(root: ITreeNode): IHole[] {
     const holes: IHole[] = [];
-    this.collectHoles(root, holes);
+    const queue: ITreeNode[] = [root];
 
-    // Sort by priority (depth first, then alphabetically)
-    holes.sort((a, b) => a.compareTo(b));
+    while (queue.length > 0) {
+      const levelSize = queue.length;
+      const currentLevelHoles: IHole[] = [];
+
+      // Process entire current level
+      for (let i = 0; i < levelSize; i++) {
+        const node = queue.shift()!;
+
+        // If this node can store walnuts, add to current level
+        if (node.canStore()) {
+          currentLevelHoles.push(node as IHole);
+        }
+
+        // Add children for next level
+        for (const child of node.getChildren()) {
+          queue.push(child);
+        }
+      }
+
+      // Sort current level alphabetically (leftmost first within same depth)
+      currentLevelHoles.sort((a, b) =>
+        a.getPathFromRoot().localeCompare(b.getPathFromRoot())
+      );
+
+      // Add current level holes to result (already in optimal order!)
+      holes.push(...currentLevelHoles);
+    }
 
     return holes;
   }
-
-  private collectHoles(node: ITreeNode, holes: IHole[]): void {
-    if (node.canStore()) {
-      holes.push(node as IHole);
-    }
-
-    for (const child of node.getChildren()) {
-      this.collectHoles(child, holes);
-    }
-  }
 }
 
-class OptimalWalnutStorage implements IWalnutStorage {
+class OptimalWalnutStorageWithEarlyTermination implements IWalnutStorage {
   storeWalnuts(holes: IHole[], walnutCount: number): string[] {
     const results: string[] = [];
     let walnutNumber = 1;
@@ -240,6 +255,90 @@ class OptimalWalnutStorage implements IWalnutStorage {
         }
       }
 
+      // Early termination - stop when all walnuts are stored
+      if (walnutNumber > walnutCount) break;
+    }
+
+    return results;
+  }
+}
+
+// ============ ADVANCED BFS WITH INTEGRATED EARLY TERMINATION ============
+class IntegratedBFSWalnutProcessor implements IWalnutStorage {
+  storeWalnuts(holes: IHole[], walnutCount: number): string[] {
+    // Note: This method expects holes to be in BFS order already
+    // For even better performance, we could integrate hole finding and walnut storage
+    return this.storeWalnutsDirectly(holes, walnutCount);
+  }
+
+  // Alternative: Integrated BFS that finds holes and stores walnuts in one pass
+  storeWalnutsFromTree(root: ITreeNode, walnutCount: number): string[] {
+    const results: string[] = [];
+    const queue: ITreeNode[] = [root];
+    let walnutNumber = 1;
+
+    while (queue.length > 0 && walnutNumber <= walnutCount) {
+      const levelSize = queue.length;
+      const currentLevelHoles: IHole[] = [];
+
+      // Process entire current level
+      for (let i = 0; i < levelSize; i++) {
+        const node = queue.shift()!;
+
+        // If this node can store walnuts, add to current level
+        if (node.canStore()) {
+          currentLevelHoles.push(node as IHole);
+        }
+
+        // Add children for next level
+        for (const child of node.getChildren()) {
+          queue.push(child);
+        }
+      }
+
+      // Sort current level alphabetically (leftmost first within same depth)
+      currentLevelHoles.sort((a, b) =>
+        a.getPathFromRoot().localeCompare(b.getPathFromRoot())
+      );
+
+      // Store walnuts in current level immediately
+      for (const hole of currentLevelHoles) {
+        while (!hole.isFull() && walnutNumber <= walnutCount) {
+          if (hole.storeWalnut()) {
+            results.push(`${walnutNumber}${hole.getPathFromRoot()}`);
+            walnutNumber++;
+          }
+        }
+
+        // Early termination - stop when all walnuts are stored
+        if (walnutNumber > walnutCount) {
+          return results;
+        }
+      }
+
+      // Early termination - check if we have enough capacity in remaining levels
+      const remainingWalnuts = walnutCount - walnutNumber + 1;
+      if (remainingWalnuts <= 0) {
+        break;
+      }
+    }
+
+    return results;
+  }
+
+  private storeWalnutsDirectly(holes: IHole[], walnutCount: number): string[] {
+    const results: string[] = [];
+    let walnutNumber = 1;
+
+    for (const hole of holes) {
+      while (!hole.isFull() && walnutNumber <= walnutCount) {
+        if (hole.storeWalnut()) {
+          results.push(`${walnutNumber}${hole.getPathFromRoot()}`);
+          walnutNumber++;
+        }
+      }
+
+      // Early termination
       if (walnutNumber > walnutCount) break;
     }
 
@@ -293,8 +392,8 @@ class SquirrelTreeSolver {
     // Dependency Injection with defaults
     this.validator = validator || new InputValidator();
     this.treeBuilder = treeBuilder || new TreeBuilder();
-    this.holeFinder = holeFinder || new DepthFirstHoleFinder();
-    this.walnutStorage = walnutStorage || new OptimalWalnutStorage();
+    this.holeFinder = holeFinder || new BreadthFirstHoleFinder();
+    this.walnutStorage = walnutStorage || new IntegratedBFSWalnutProcessor();
   }
 
   solve(input: string): string {
@@ -362,6 +461,8 @@ class SquirrelTreeSolverFactory {
 // ============ LEGACY ALIASES FOR BACKWARD COMPATIBILITY ============
 // These are exported to maintain compatibility with existing tests
 const TreeNode = AbstractTreeNode;
+const DepthFirstHoleFinder = BreadthFirstHoleFinder; // Legacy alias
+const OptimalWalnutStorage = OptimalWalnutStorageWithEarlyTermination; // Legacy alias
 
 // ============ MAIN FUNCTION ============
 function solveSquirrelTree(): void {
@@ -395,10 +496,13 @@ export {
   RootNode,
   StorageNode,
   TreeBuilder,
-  DepthFirstHoleFinder,
-  OptimalWalnutStorage,
+  BreadthFirstHoleFinder,
+  OptimalWalnutStorageWithEarlyTermination,
+  IntegratedBFSWalnutProcessor,
   InputValidator,
   TreeNode, // For backward compatibility
+  DepthFirstHoleFinder, // Legacy alias pointing to BFS
+  OptimalWalnutStorage, // Legacy alias with early termination
 };
 
 // Run if this file is executed directly
