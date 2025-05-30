@@ -1,0 +1,24 @@
+{
+  "name": "squirrel-tree-problem",
+  "version": "1.0.0",
+  "description": "Solution for the squirrel tree walnut storage problem",
+  "main": "dist/squirrel-tree.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/squirrel-tree.js",
+    "dev": "ts-node squirrel-tree.ts",
+    "test": "node dist/test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "typescript": "^4.9.0",
+    "ts-node": "^10.9.0"
+  },
+  "keywords": [
+    "algorithm",
+    "tree",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT"
+}
