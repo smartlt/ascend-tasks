@@ -26,7 +26,7 @@ A modern URL shortening service built with Next.js, TypeScript, MongoDB, and Tai
 ### System Flow
 
 ```mermaid
-graph TD
+flowchart TD
     A[User enters URL] --> B[Frontend validates URL]
     B --> C[POST /api/shorten]
     C --> D[Backend validates URL]
